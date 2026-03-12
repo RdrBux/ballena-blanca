@@ -13,5 +13,7 @@ export default defineConfig({
     name: "Inter",
     cssVariable: "--font-inter"
   }
-  ]
+  ],
+  site: 'https://rdrbux.github.io',
+  base: '/ballena-blanca'
 });
