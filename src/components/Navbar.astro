@@ -3,30 +3,109 @@ import { Image } from "astro:assets";
 import logo from "../assets/logo.png";
 ---
 
-<header class="absolute inset-0 w-full h-fit z-30 border-b border-white/10">
-	<div class="container max-w-7xl mx-auto px-4 py-2 h-20 flex items-center gap-4 justify-between">
-		<a href="/#" class="flex items-center gap-2">
-			<Image src={logo} alt="Estudio Ballena Blanca" width={52} height={52} />
-			<p class="text-lg font-semibold">
-				Estudio Ballena Blanca
-			</p>
-		</a>
+<header class="absolute inset-0 w-full h-fit z-50 border-b border-white/10">
+  <div class="container max-w-7xl mx-auto px-6 py-2 lg:h-20 flex items-center gap-4 justify-between">
+    <a href="/#" class="flex items-center gap-2">
+      <Image src={logo} alt="Estudio Ballena Blanca" width={52} height={52} />
+      <p class="text-lg font-semibold">Estudio Ballena Blanca</p>
+    </a>
 
-		<nav>
-			<ul class="flex items-center gap-10">
-				<li>
-					<a class="py-2 text-white/50 text-sm font-medium hover:text-white duration-300" href="/#servicios">SERVICIOS</a>
-				</li>
-				<li>
-					<a class="py-2 text-white/50 text-sm font-medium hover:text-white duration-300" href="/#portfolio">TRABAJOS</a>
-				</li>
-				<li>
-					<a class="relative group/nav py-3 px-6 text-primary-500 border border-primary-500 bg-primary-500/10 text-sm font-medium" href="/#contacto">
-						CONTACTO
-						<div aria-hidden class="bg-transparent group-hover/nav:bg-primary-500/15 duration-300 absolute inset-0 -z-10 blur-xl"></div>
-					</a>
-				</li>
-			</ul>
-		</nav>
-	</div>
+    <!-- Desktop nav -->
+    <nav>
+      <ul class="hidden lg:flex items-center gap-10">
+        <li>
+          <a class="py-2 text-white/50 text-sm font-medium hover:text-white duration-300" href="/#servicios">SERVICIOS</a>
+        </li>
+        <li>
+          <a class="py-2 text-white/50 text-sm font-medium hover:text-white duration-300" href="/#portfolio">TRABAJOS</a>
+        </li>
+        <li>
+          <a class="relative group/nav py-3 px-6 text-primary-500 border border-primary-500 bg-primary-500/10 text-sm font-medium" href="/#contacto">
+            CONTACTO
+            <div aria-hidden class="bg-transparent group-hover/nav:bg-primary-500/15 duration-300 absolute inset-0 -z-10 blur-xl"></div>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Hamburger button -->
+    <button
+      id="menu-toggle"
+      class="lg:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 z-50"
+      aria-label="Abrir menú"
+      aria-expanded="false"
+    >
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-all duration-300"></span>
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-all duration-300"></span>
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-all duration-300"></span>
+    </button>
+  </div>
+
+  <!-- Mobile dropdown -->
+  <div
+    id="mobile-menu"
+    class="lg:hidden overflow-hidden max-h-0 transition-[max-height] duration-500 ease-in-out bg-[#06090E] border-white/10"
+  >
+    <nav class="container max-w-7xl mx-auto px-6 pb-6 pt-2">
+      <ul class="flex flex-col gap-1">
+        <li>
+					<a
+            class="mobile-link block py-3 px-2  text-white/50 text-base font-medium tracking-widest hover:text-white hover:bg-white/5 duration-300 border-b border-white/5"
+            href="/#servicios"
+          >SERVICIOS</a>
+        </li>
+        <li>
+					<a
+            class="mobile-link block py-3 px-2 text-white/50 text-base font-medium tracking-widest hover:text-white hover:bg-white/5 duration-300 border-b border-white/5"
+            href="/#portfolio"
+          >TRABAJOS</a>
+        </li>
+        <li class="pt-3">
+					<a
+            class="mobile-link relative group/nav flex justify-center py-3 px-6 text-primary-500 border border-primary-500 bg-primary-500/10 text-sm font-medium tracking-widest"
+            href="/#contacto"
+          >
+            CONTACTO
+            <div aria-hidden class="bg-transparent group-hover/nav:bg-primary-500/15 duration-300 absolute inset-0 -z-10 blur-xl"></div>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
 </header>
+
+<script>
+  const toggle = document.getElementById('menu-toggle')!;
+  const menu = document.getElementById('mobile-menu')!;
+  const lines = toggle.querySelectorAll('.hamburger-line');
+
+  function openMenu() {
+    menu.style.maxHeight = menu.scrollHeight + 'px';
+    menu.classList.add('border-b');
+    toggle.setAttribute('aria-expanded', 'true');
+    // Animate to X
+    lines[0].classList.add('translate-y-2', 'rotate-45');
+    lines[1].classList.add('opacity-0', 'scale-x-0');
+    lines[2].classList.add('-translate-y-2', '-rotate-45');
+  }
+
+  function closeMenu() {
+    menu.style.maxHeight = '0px';
+    menu.classList.remove('border-b');
+    toggle.setAttribute('aria-expanded', 'false');
+    // Restore hamburger
+    lines[0].classList.remove('translate-y-2', 'rotate-45');
+    lines[1].classList.remove('opacity-0', 'scale-x-0');
+    lines[2].classList.remove('-translate-y-2', '-rotate-45');
+  }
+
+  toggle.addEventListener('click', () => {
+    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+    isOpen ? closeMenu() : openMenu();
+  });
+
+  // Close on link click
+  document.querySelectorAll('.mobile-link').forEach(link => {
+    link.addEventListener('click', closeMenu);
+  });
+</script>
