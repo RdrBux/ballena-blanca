@@ -1,5 +1,84 @@
-<div class="my-20">
-	<h1>
-		Hola
-	</h1>
+---
+---
+<div class="relative overflow-hidden h-svh border-b-2 border-primary-500/10">
+  <div class="py-28 container max-w-7xl mx-auto px-4 flex flex-col gap-10 items-center justify-center h-full">
+    <div class="flex items-center gap-2">
+      <div aria-hidden class="w-2.5 h-2.5 rounded-full bg-primary-500 animate-pulse"></div>
+      <p class="uppercase text-primary-500 text-sm tracking-widest font-medium">
+        Mezcla & Masterización Online
+      </p>
+    </div>
+    <h1 class="text-[96px] font-semibold uppercase tracking-tight text-center leading-[1.1]">
+      Llevamos tu <br>audio a un <br><span class="text-primary-500">nuevo nivel</span>
+    </h1>
+    <p class="text-white/50 text-center max-w-md">
+      Sonido profesional para artistas, podcasters y coreógrafos.
+      Calidad de estudio, estés donde estés.
+    </p>
+		<a class="relative flex items-center gap-2 bg-primary-500 z-10 text-black font-bold p-3 pl-4.5 pr-6 uppercase text-sm group/cta" href="/#servicios">
+			<div aria-hidden class="absolute inset-0 w-full h-full blur-lg bg-transparent -z-10 duration-300 group-hover/cta:bg-primary-500/30"></div>
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="size-4">
+				<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+			</svg>
+			Ver nuestros servicios
+		</a>
+  </div>
+
+  <!-- EQ Canvas -->
+  <canvas id="eq-canvas" class="absolute bottom-0 left-0 w-full pointer-events-none"></canvas>
 </div>
+
+<script>
+  const canvas = document.getElementById('eq-canvas') as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+  const BAR_COUNT = 90;
+  let t = 0;
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 140;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const barHeights = Array.from({ length: BAR_COUNT }, () => Math.random());
+	const barTargets = Array.from({ length: BAR_COUNT }, () => Math.random());
+
+	function draw() {
+		requestAnimationFrame(draw);
+		t += 0.016;
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+		const barW = canvas.width / BAR_COUNT;
+		const baseY = canvas.height;
+
+		for (let i = 0; i < BAR_COUNT; i++) {
+			// Actualiza el target ocasionalmente, no cada frame
+			if (Math.random() < 0.03) {
+				barTargets[i] = Math.random();
+			}
+			// Lerp suave hacia el target
+			barHeights[i] += (barTargets[i] - barHeights[i]) * 0.04;
+
+			const h = barHeights[i] * 130 * (0.4 + 0.6 * Math.abs(Math.sin(t * 0.8 + i * 0.12)));
+			const x = i * barW + barW * 0.2;
+			const alpha = 0.12 + 0.12 * Math.abs(Math.sin(t * 0.5 + i * 0.15));
+			const bw = barW * 0.6;
+
+			// Gradiente vertical verde → dorado
+			const gradient = ctx.createLinearGradient(0, baseY - h, 0, baseY);
+			gradient.addColorStop(0, `rgba(189,188,142,${alpha * 1.0})`);
+			gradient.addColorStop(1, `rgba(99,171,148,${alpha})`);
+
+			// Glow
+			ctx.save();
+			ctx.shadowColor = '#63ab94';
+			ctx.shadowBlur = 10;
+			ctx.fillStyle = gradient;
+			ctx.fillRect(x, baseY - h, bw, h);
+			ctx.restore();
+		}
+	}
+
+  draw();
+</script>
