@@ -5,7 +5,7 @@
   <div class="relative py-24 lg:py-28 container max-w-7xl mx-auto z-10 px-6 flex flex-col gap-10 items-center justify-center h-full">
 		<div class="flex items-center gap-2">
 			<div aria-hidden class="w-2.5 h-2.5 rounded-full bg-primary-500 animate-pulse"></div>
-      <p class="uppercase text-primary-500 text-sm tracking-widest font-medium">
+      <p class="uppercase text-primary-500 text-sm tracking-wide font-medium">
 				Mezcla & Masterización Online
       </p>
     </div>
@@ -25,60 +25,162 @@
   </div>
 
   <!-- EQ Canvas -->
-  <canvas id="eq-canvas" class="absolute bottom-0 left-0 w-full pointer-events-none"></canvas>
+  <canvas id="eq-canvas" class="absolute bottom-0 left-0 w-full h-40 pointer-events-none"></canvas>
 </div>
 
 <script>
+  type RGB = [number, number, number];
+
   const canvas = document.getElementById('eq-canvas') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
-  const BAR_COUNT = 90;
-  let t = 0;
 
+  // --- Ajustes ---
+  const BAR_COUNT = 90;
+  const HEIGHT = 168;              // alto del canvas (px), debe coincidir con h-[168px]
+  const MAX_BAR = 156;             // alto máximo de una barra
+  const BPM = 118;
+  const GREEN: RGB = [73, 141, 127];
+  const GOLD: RGB = [189, 188, 142];
+  const BASE_ALPHA = 0.08;         // opacidad de una barra en reposo
+  const ALPHA_RANGE = 0.30;        // cuánto sube la opacidad al crecer
+  const GLOW = 20;                 // intensidad del bloom
+  const DETAIL = 0.3;              // 0 = onda suave, más = más irregular entre barras vecinas
+  const START = (8 * 4 * 60) / BPM; // empieza en la parte intensa de la canción
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- Canvas / resize (con soporte retina) ---
+  let w = 0;
+  let dpr = 1;
   function resize() {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = 140;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.offsetWidth;
+    canvas.width = w * dpr;
+    canvas.height = HEIGHT * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   resize();
   window.addEventListener('resize', resize);
 
-  const barHeights = Array.from({ length: BAR_COUNT }, () => Math.random());
-	const barTargets = Array.from({ length: BAR_COUNT }, () => Math.random());
+  // --- Utilidades ---
+  const gs = (f: number, c: number, wd: number) => Math.exp(-(((f - c) / wd) ** 2)); // campana
+  const fr = (x: number) => x - Math.floor(x);
+  const smooth = (u: number) => u * u * (3 - 2 * u);
+  const hash = (a: number, b: number) => {
+    const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  // Ruido suave en 2 dimensiones (frecuencia × tiempo): barras vecinas y momentos cercanos se parecen
+  function noise(x: number, y: number) {
+    const a = Math.floor(x), b = Math.floor(y);
+    const u = smooth(x - a), v = smooth(y - b);
+    const top = hash(a, b) * (1 - u) + hash(a + 1, b) * u;
+    const bot = hash(a, b + 1) * (1 - u) + hash(a + 1, b + 1) * u;
+    return top * (1 - v) + bot * v;
+  }
+  // Techo suave: evita que los picos se aplasten contra el máximo
+  const softClip = (x: number) => (x < 0.8 ? x : 0.8 + 0.2 * Math.tanh((x - 0.8) / 0.2));
 
-	function draw() {
-		requestAnimationFrame(draw);
-		t += 0.016;
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // --- Simulación de una canción (118 BPM, ciclo de 16 compases) ---
+  function spectrum(t: number): number[] {
+    const beat = (t * BPM) / 60;
+    const bar = (beat / 4) % 16;
+    // intro → build → drop → respiro
+    const en = bar < 4 ? 0.7 : bar < 8 ? 0.7 + (0.3 * (bar - 4)) / 4 : bar < 15 ? 1 : 0.75;
+    const kick = Math.exp(-fr(beat) * 6.5) * (bar < 4 ? 0.8 : 1);                  // bombo: cada tiempo
+    const snare = Math.floor(beat) % 2 === 1 ? Math.exp(-fr(beat) * 9) : 0;        // caja: tiempos 2 y 4
+    const hat = Math.exp(-fr(beat * 2) * 14) * (Math.floor(beat * 2) % 2 ? 1 : 0.6) * (bar < 2 ? 0.3 : 1); // hi-hat
+    const m1 = 0.36 + 0.1 * Math.sin(t * 0.9);                                      // melodía: 3 picos móviles
+    const m2 = 0.52 + 0.12 * Math.sin(t * 0.6 + 2);
+    const m3 = 0.66 + 0.1 * Math.sin(t * 1.3 + 4);
+    const mel = bar >= 4 ? 1 : 0.5;
 
-		const barW = canvas.width / BAR_COUNT;
-		const baseY = canvas.height;
+    const out: number[] = [];
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const f = i / (BAR_COUNT - 1);
 
-		for (let i = 0; i < BAR_COUNT; i++) {
-			// Actualiza el target ocasionalmente, no cada frame
-			if (Math.random() < 0.03) {
-				barTargets[i] = Math.random();
-			}
-			// Lerp suave hacia el target
-			barHeights[i] += (barTargets[i] - barHeights[i]) * 0.04;
+      // 1) Silueta: onda fluida + golpes de la canción (cada instrumento cubre un grupo de barras)
+      const wave =
+        (0.5 + 0.5 * Math.sin(f * 9 + t * 2.1) * Math.sin(f * 5.3 - t * 1.3 + 1)) * (1 - 0.5 * f) + 0.04;
+      let e = 0.5 * wave * (0.6 + 0.4 * kick);
+      e +=
+        0.85 *
+        (kick * (gs(f, 0.08, 0.12) + 0.3 * gs(f, 0.22, 0.1)) +
+          snare * (0.8 * gs(f, 0.45, 0.25) + 0.7 * gs(f, 0.75, 0.3)) +
+          hat * 0.8 * gs(f, 0.86, 0.22) +
+          mel * (0.35 * gs(f, m1, 0.09) + 0.3 * gs(f, m2, 0.09) + 0.25 * gs(f, m3, 0.08))) *
+        (1 + 0.4 * f);
+      e = Math.tanh(en * e * 0.95);
 
-			const h = barHeights[i] * 130 * (0.4 + 0.6 * Math.abs(Math.sin(t * 0.8 + i * 0.12)));
-			const x = i * barW + barW * 0.2;
-			const alpha = 0.05 + 0.15 * Math.abs(Math.sin(t * 0.5 + i * 0.15));
-			const bw = barW * 0.6;
+      // 2) Textura: picos y valles pequeños, conectados con los vecinos (no aleatorios por barra)
+      const n =
+        noise(i / 2.2, t / 0.25) * 0.5 +
+        noise(i / 5.5 + 50, t / 0.5 + 9) * 0.2 +
+        noise(i / 1.2 + 99, t / 0.12 + 3) * 0.3;
+      const tex = Math.max(0.25, 1 + DETAIL * (n - 0.5) * 4);
 
-			// Gradiente vertical verde → dorado
-			const gradient = ctx.createLinearGradient(0, baseY - h, 0, baseY);
-			gradient.addColorStop(0, `rgba(189,188,142,${alpha * 1.0})`);
-			gradient.addColorStop(1, `rgba(99,171,148,${alpha})`);
+      out.push(softClip(Math.pow(e * tex, 1.25) * 1.35));
+    }
+    return out;
+  }
 
-			// Glow
-			ctx.save();
-			ctx.shadowColor = '#63ab94';
-			ctx.shadowBlur = 10;
-			ctx.fillStyle = gradient;
-			ctx.fillRect(x, baseY - h, bw, h);
-			ctx.restore();
-		}
-	}
+  // --- Estado: ataque rápido, caída lenta ---
+  const levels = new Array(BAR_COUNT).fill(0.05);
 
-  draw();
+  function update(t: number, dt: number, snap = false) {
+    const target = spectrum(t);
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const k = snap ? 1 : 1 - Math.exp(-dt / (target[i] > levels[i] ? 0.03 : 0.16));
+      levels[i] += (target[i] - levels[i]) * k;
+    }
+  }
+
+  const mix = (a: RGB, b: RGB, k: number) =>
+    `${Math.round(a[0] + (b[0] - a[0]) * k)},${Math.round(a[1] + (b[1] - a[1]) * k)},${Math.round(a[2] + (b[2] - a[2]) * k)}`;
+
+  function render() {
+    ctx.clearRect(0, 0, w, HEIGHT);
+    const barW = w / BAR_COUNT;
+    const bw = barW * 0.6;
+
+    ctx.shadowColor = '#63ab94';
+    ctx.shadowBlur = GLOW * dpr;
+
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const a = levels[i];
+      const h = Math.max(bw, a * MAX_BAR);
+      const x = i * barW + barW * 0.2;
+      const alpha = BASE_ALPHA + ALPHA_RANGE * a;
+      // Más dorado en la punta cuanto más alta es la barra
+      const k = Math.min(1, Math.max(0, (a - 0.35) / 0.45));
+
+      const g = ctx.createLinearGradient(0, HEIGHT - h, 0, HEIGHT);
+      g.addColorStop(0, `rgba(${mix(GREEN, GOLD, k)},${alpha})`);
+      g.addColorStop(1, `rgba(${GREEN.join(',')},${alpha * 0.8})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(x, HEIGHT - h, bw, h);
+    }
+  }
+
+  // --- Loop (solo corre si el hero es visible) ---
+  let raf = 0;
+  let last = 0;
+  function frame(now: number) {
+    raf = requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+    last = now;
+    update(START + now / 1000, dt);
+    render();
+  }
+
+  if (reduceMotion) {
+    update(START + 0.05, 0.016, true);
+    render();
+  } else {
+    new IntersectionObserver(([entry]) => {
+      cancelAnimationFrame(raf);
+      last = 0;
+      if (entry.isIntersecting) raf = requestAnimationFrame(frame);
+    }).observe(canvas);
+  }
 </script>

@@ -9,11 +9,12 @@ export default defineConfig({
     plugins: [tailwindcss()]
   },
   fonts: [{
-    provider: fontProviders.fontsource(),
-    name: "Inter",
-    cssVariable: "--font-inter"
-  }
-  ],
+    provider: fontProviders.fontshare(),
+    name: "Satoshi",
+    cssVariable: "--font-satoshi",
+    weights: [400, 500, 700],
+    styles: ['normal']
+  }],
   site: 'https://rdrbux.github.io',
   base: '/ballena-blanca'
 });
