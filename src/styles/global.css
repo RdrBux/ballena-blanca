@@ -2,6 +2,7 @@
 
 @theme {
 	--font-sans: var(--font-satoshi), sans-serif;
+	--color-background: #06090e;
 	--color-primary-500: #498d7f;
 	--color-secondary-500: #b5b172;
 }
