@@ -1,53 +1,83 @@
 ---
 ---
-<div class="relative overflow-hidden h-svh border-b border-white/10">
-	<div aria-hidden class=" w-[50vw] h-[50vh] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary-500 opacity-10 lg:opacity-15 rounded-full blur-[20vw]"></div>
+<div id="hero-section" class="relative overflow-hidden h-svh border-b border-white/10">
+	<div aria-hidden class="w-[50vw] h-[50vh] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary-500 opacity-10 lg:opacity-15 rounded-full blur-[20vw] pointer-events-none"></div>
   <div class="relative py-24 lg:py-28 container max-w-7xl mx-auto z-10 px-6 flex flex-col gap-10 items-center justify-center h-full">
-		<div class="flex items-center gap-2">
+		<div style="--stagger-delay: 40ms;" class="hero-stagger flex items-center gap-2">
 			<div aria-hidden class="w-2.5 h-2.5 rounded-full bg-primary-500 animate-pulse"></div>
       <p class="uppercase text-primary-500 text-sm tracking-wide font-semibold">
 				Mezcla & Masterización Online
       </p>
     </div>
-    <h1 class="text-5xl md:text-7xl lg:text-[96px] font-bold uppercase tracking-tight text-center leading-[1.1]">
+    <h1 style="--stagger-delay: 110ms;" class="hero-stagger text-5xl md:text-7xl lg:text-[96px] font-bold uppercase tracking-tight text-center leading-[1.1]">
 			Llevamos tu <br>audio a un <br><span class="text-primary-500">nuevo nivel</span>
     </h1>
-    <p class="text-lg text-white/50 text-center max-w-md">
+    <p style="--stagger-delay: 180ms;" class="hero-stagger text-lg text-white/50 text-center max-w-md">
       Sonido profesional para artistas y creadores. <br class="hidden md:block">Calidad de estudio, estés donde estés.
     </p>
-		<a class="relative flex items-center gap-2 bg-primary-500 z-10 text-black font-bold p-3 pl-4.5 pr-6 uppercase text-sm tracking-wide active:scale-[0.97] transition-transform duration-150 ease-out group/cta" href="/ballena-blanca/#servicios">
+		<a style="--stagger-delay: 250ms;" class="hero-stagger relative flex items-center gap-2 bg-primary-500 z-10 text-black font-bold p-3 pl-4.5 pr-6 uppercase text-sm tracking-wide active:scale-[0.97] transition-transform duration-150 ease-out group/cta" href="/ballena-blanca/#servicios">
 			<div aria-hidden class="absolute inset-0 w-full h-full blur-lg bg-transparent -z-10 transition-colors duration-200 ease-out group-hover/cta:bg-primary-500/30"></div>
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="size-4">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="size-4 transition-transform duration-200 ease-out group-hover/cta:translate-y-0.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
 			</svg>
 			Ver nuestros servicios
 		</a>
   </div>
 
-  <!-- EQ Canvas -->
-  <canvas id="eq-canvas" class="absolute bottom-0 left-0 w-full h-[168px] pointer-events-none"></canvas>
+  <!-- EQ Canvas (GPU-composited drop-shadow replaces 90x per-bar software shadowBlur) -->
+  <canvas id="eq-canvas" class="absolute bottom-0 left-0 w-full h-42 pointer-events-none drop-shadow-[0_0_18px_rgba(73,141,127,0.35)]"></canvas>
 </div>
 
 <script>
   type RGB = [number, number, number];
 
+  const heroSection = document.getElementById('hero-section') as HTMLElement;
   const canvas = document.getElementById('eq-canvas') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
 
   // --- Ajustes ---
   const BAR_COUNT = 90;
-  const HEIGHT = 168;              // alto del canvas (px), debe coincidir con h-[168px]
+  const HEIGHT = 168;              // alto del canvas (px), debe coincidir con h-42 (168px)
   const MAX_BAR = 156;             // alto máximo de una barra
   const BPM = 118;
   const GREEN: RGB = [73, 141, 127];
   const GOLD: RGB = [181, 177, 114];
   const BASE_ALPHA = 0.08;         // opacidad de una barra en reposo
   const ALPHA_RANGE = 0.30;        // cuánto sube la opacidad al crecer
-  const GLOW = 20;                 // intensidad del bloom
   const DETAIL = 0.3;              // 0 = onda suave, más = más irregular entre barras vecinas
   const START = (8 * 4 * 60) / BPM; // empieza en la parte intensa de la canción
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- Estado del filtro EQ interactivo (con física de resorte / spring) ---
+  let targetFreq = 0.5;
+  let springFreq = 0.5;
+  let freqVel = 0;
+
+  let targetBoost = 0;
+  let springBoost = 0;
+  let boostVel = 0;
+
+  if (!reduceMotion && heroSection) {
+    heroSection.addEventListener('pointermove', (e: PointerEvent) => {
+      const rect = heroSection.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      // Primera interacción: enganchar posición inicial sin salto brusco
+      if (targetBoost === 0 && springBoost < 0.01) {
+        springFreq = nx;
+        freqVel = 0;
+      }
+      targetFreq = nx;
+      // Más ganancia cuanto más cerca del analizador inferior
+      targetBoost = 0.24 + 0.18 * ny;
+    });
+
+    heroSection.addEventListener('pointerleave', () => {
+      targetBoost = 0;
+    });
+  }
 
   // --- Canvas / resize (con soporte retina) ---
   let w = 0;
@@ -119,19 +149,39 @@
         noise(i / 1.2 + 99, t / 0.12 + 3) * 0.3;
       const tex = Math.max(0.25, 1 + DETAIL * (n - 0.5) * 4);
 
-      out.push(softClip(Math.pow(e * tex, 1.25) * 1.35));
+      // 3) Campana EQ paramétrica interactiva controlada por el cursor
+      const eqBell = springBoost > 0.002 ? gs(f, springFreq, 0.085) * springBoost : 0;
+
+      out.push(softClip(Math.pow(e * tex, 1.25) * 1.35 + eqBell));
     }
     return out;
   }
 
   // --- Estado: ataque rápido, caída lenta ---
-  const levels = new Array(BAR_COUNT).fill(0.05);
+  const levels = new Array(BAR_COUNT).fill(0.02);
+  let elapsed = 0;
 
   function update(t: number, dt: number, snap = false) {
+    if (!snap) {
+      elapsed += dt;
+      // Integración física del resorte (stiffness = 140, damping = 16)
+      const freqForce = (targetFreq - springFreq) * 140 - freqVel * 16;
+      freqVel += freqForce * dt;
+      springFreq += freqVel * dt;
+
+      const boostForce = (targetBoost - springBoost) * 110 - boostVel * 14;
+      boostVel += boostForce * dt;
+      springBoost = Math.max(0, springBoost + boostVel * dt);
+    }
+
+    // Entrada suave de fader al cargar la página (~900ms ease-out)
+    const masterGain = snap ? 1 : 1 - Math.exp(-elapsed / 0.32);
     const target = spectrum(t);
+
     for (let i = 0; i < BAR_COUNT; i++) {
-      const k = snap ? 1 : 1 - Math.exp(-dt / (target[i] > levels[i] ? 0.03 : 0.16));
-      levels[i] += (target[i] - levels[i]) * k;
+      const scaledTarget = target[i] * masterGain;
+      const k = snap ? 1 : 1 - Math.exp(-dt / (scaledTarget > levels[i] ? 0.03 : 0.16));
+      levels[i] += (scaledTarget - levels[i]) * k;
     }
   }
 
@@ -143,19 +193,20 @@
     const barW = w / BAR_COUNT;
     const bw = barW * 0.6;
 
-    ctx.shadowColor = '#498d7f';
-    ctx.shadowBlur = GLOW * dpr;
-
     for (let i = 0; i < BAR_COUNT; i++) {
+      const f = i / (BAR_COUNT - 1);
       const a = levels[i];
       const h = Math.max(bw, a * MAX_BAR);
       const x = i * barW + barW * 0.2;
-      const alpha = BASE_ALPHA + ALPHA_RANGE * a;
-      // Más dorado en la punta cuanto más alta es la barra
-      const k = Math.min(1, Math.max(0, (a - 0.35) / 0.45));
+
+      // Influencia de la campana EQ interactiva para calentar el color hacia dorado
+      const eqInfluence = springBoost > 0.002 ? gs(f, springFreq, 0.095) * (springBoost / 0.35) : 0;
+      const alpha = Math.min(0.65, BASE_ALPHA + ALPHA_RANGE * a + eqInfluence * 0.12);
+      const k = Math.min(1, Math.max(0, (a - 0.35) / 0.45 + eqInfluence * 0.45));
+      const tipColor = mix(GREEN, GOLD, k);
 
       const g = ctx.createLinearGradient(0, HEIGHT - h, 0, HEIGHT);
-      g.addColorStop(0, `rgba(${mix(GREEN, GOLD, k)},${alpha})`);
+      g.addColorStop(0, `rgba(${tipColor},${alpha})`);
       g.addColorStop(1, `rgba(${GREEN.join(',')},${alpha * 0.8})`);
       ctx.fillStyle = g;
       ctx.fillRect(x, HEIGHT - h, bw, h);

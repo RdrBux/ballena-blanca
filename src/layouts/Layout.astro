@@ -13,9 +13,43 @@ import { Font } from "astro:assets";
 		<link rel="icon" href="/ballena-blanca/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
 		<title>Estudio Ballena Blanca</title>
+		<script is:inline>
+			document.documentElement.classList.add('js-ready');
+		</script>
 	</head>
 	<body>
 		<slot />
+		<script>
+			const revealElements = document.querySelectorAll<HTMLElement>('[data-reveal]');
+			const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+			if (reduceMotion) {
+				revealElements.forEach((el) => {
+					el.dataset.visible = '';
+					el.dataset.settled = '';
+				});
+			} else if (revealElements.length > 0) {
+				const observer = new IntersectionObserver(
+					(entries) => {
+						entries.forEach((entry) => {
+							if (!entry.isIntersecting) return;
+							const el = entry.target as HTMLElement;
+							el.dataset.visible = '';
+							observer.unobserve(el);
+
+							const rawDelay = el.style.getPropertyValue('--reveal-delay') || '0ms';
+							const delayMs = parseFloat(rawDelay) || 0;
+							window.setTimeout(() => {
+								el.dataset.settled = '';
+							}, 520 + delayMs);
+						});
+					},
+					{ rootMargin: '0px 0px -72px 0px', threshold: 0.1 }
+				);
+
+				revealElements.forEach((el) => observer.observe(el));
+			}
+		</script>
 	</body>
 </html>
 

@@ -3,9 +3,9 @@ import { Image } from "astro:assets";
 import logo from "../assets/logo.png";
 ---
 
-<header class="absolute inset-0 w-full h-fit z-50 border-b border-white/10">
+<header class="nav-enter absolute inset-0 w-full h-fit z-50 border-b border-white/10">
   <div class="container max-w-7xl mx-auto px-6 py-2 lg:h-20 flex items-center gap-4 justify-between">
-    <a href="/ballena-blanca/#" class="flex items-center gap-2">
+    <a href="/ballena-blanca/#" class="flex items-center gap-2 active:scale-[0.98] transition-transform duration-150 ease-out">
       <Image src={logo} alt="Estudio Ballena Blanca" width={52} height={52} />
       <p class="text-lg font-semibold">Estudio Ballena Blanca</p>
     </a>
@@ -20,7 +20,7 @@ import logo from "../assets/logo.png";
           <a class="py-2 text-white/50 text-sm font-medium tracking-wide hover:text-white transition-colors duration-200 ease-out" href="/ballena-blanca/#portfolio">TRABAJOS REALIZADOS</a>
         </li>
         <li>
-          <a class="relative inline-block group/nav py-3 px-6 text-primary-500 border border-primary-500/50 bg-primary-500/10 text-sm font-bold tracking-wide uppercase active:scale-[0.97] transition-[transform,colors] duration-150 ease-out" href="/ballena-blanca/#contacto">
+          <a class="relative inline-block group/nav py-3 px-6 text-primary-500 border border-primary-500/50 bg-primary-500/10 hover:bg-primary-500/15 hover:border-primary-500/80 text-sm font-bold tracking-wide uppercase active:scale-[0.97] transition-[scale,background-color,border-color] duration-150 ease-out" href="/ballena-blanca/#contacto">
             CONTACTO
             <div aria-hidden class="bg-transparent group-hover/nav:bg-primary-500/15 transition-colors duration-200 ease-out absolute inset-0 -z-10 blur-lg"></div>
           </a>
@@ -31,38 +31,42 @@ import logo from "../assets/logo.png";
     <!-- Hamburger button -->
     <button
       id="menu-toggle"
-      class="lg:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 z-50"
+      class="lg:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 z-50 active:scale-[0.95] transition-transform duration-150 ease-out"
       aria-label="Abrir menú"
       aria-expanded="false"
     >
-      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[transform,opacity] duration-200 ease-out"></span>
-      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[transform,opacity] duration-200 ease-out"></span>
-      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[transform,opacity] duration-200 ease-out"></span>
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[translate,rotate,scale,opacity] duration-200 ease-out"></span>
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[translate,rotate,scale,opacity] duration-200 ease-out"></span>
+      <span class="hamburger-line block w-6 h-0.5 bg-white transition-[translate,rotate,scale,opacity] duration-200 ease-out"></span>
     </button>
   </div>
 
   <!-- Mobile dropdown -->
   <div
     id="mobile-menu"
-    class="lg:hidden overflow-hidden max-h-0 transition-[max-height] duration-250 ease-out bg-background border-white/10"
+    data-open="false"
+    class="mobile-drawer lg:hidden absolute top-full left-0 w-full bg-background/95 backdrop-blur-md border-b border-white/10"
   >
     <nav class="container max-w-7xl mx-auto px-6 pb-6 pt-2">
       <ul class="flex flex-col gap-1">
         <li>
           <a
-            class="mobile-link block py-3 px-2 text-white/50 text-base font-medium tracking-wide hover:text-white hover:bg-white/5 transition-colors duration-200 ease-out border-b border-white/5"
+            style="--item-index: 0;"
+            class="mobile-link block py-3 px-2 text-white/50 text-base font-medium tracking-wide hover:text-white hover:bg-white/5 active:scale-[0.98] transition-[transform,scale,opacity,color,background-color] duration-200 ease-out border-b border-white/5"
             href="/ballena-blanca/#servicios"
           >SERVICIOS</a>
         </li>
         <li>
           <a
-            class="mobile-link block py-3 px-2 text-white/50 text-base font-medium tracking-wide hover:text-white hover:bg-white/5 transition-colors duration-200 ease-out border-b border-white/5"
+            style="--item-index: 1;"
+            class="mobile-link block py-3 px-2 text-white/50 text-base font-medium tracking-wide hover:text-white hover:bg-white/5 active:scale-[0.98] transition-[transform,scale,opacity,color,background-color] duration-200 ease-out border-b border-white/5"
             href="/ballena-blanca/#portfolio"
           >TRABAJOS REALIZADOS</a>
         </li>
         <li class="pt-3">
           <a
-            class="mobile-link relative group/nav flex justify-center py-3 px-6 text-primary-500 border border-primary-500/50 bg-primary-500/10 text-sm font-bold tracking-wide uppercase active:scale-[0.97] transition-[transform,colors] duration-150 ease-out"
+            style="--item-index: 2;"
+            class="mobile-link relative group/nav flex justify-center py-3 px-6 text-primary-500 border border-primary-500/50 bg-primary-500/10 text-sm font-bold tracking-wide uppercase active:scale-[0.97] transition-[transform,scale,opacity,background-color,border-color] duration-150 ease-out"
             href="/ballena-blanca/#contacto"
           >
             CONTACTO
@@ -74,28 +78,63 @@ import logo from "../assets/logo.png";
   </div>
 </header>
 
+<style>
+  .mobile-drawer {
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      clip-path 200ms var(--ease-out),
+      visibility 0ms linear 200ms;
+  }
+
+  .mobile-drawer[data-open="true"] {
+    clip-path: inset(0 0 0 0);
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+      clip-path 300ms var(--ease-drawer),
+      visibility 0ms linear 0ms;
+  }
+
+  .mobile-drawer .mobile-link {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  .mobile-drawer[data-open="true"] .mobile-link {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: calc(var(--item-index, 0) * 40ms + 40ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-drawer .mobile-link {
+      transform: none;
+    }
+  }
+</style>
+
 <script>
   const toggle = document.getElementById('menu-toggle')!;
   const menu = document.getElementById('mobile-menu')!;
   const lines = toggle.querySelectorAll('.hamburger-line');
 
   function openMenu() {
-    menu.style.maxHeight = menu.scrollHeight + 'px';
-    menu.classList.add('border-b');
+    menu.dataset.open = 'true';
     toggle.setAttribute('aria-expanded', 'true');
-    // Animate to X
+    // Animate to X (middle bar scales to 0.75 + opacity 0, never scale(0))
     lines[0].classList.add('translate-y-2', 'rotate-45');
-    lines[1].classList.add('opacity-0', 'scale-x-0');
+    lines[1].classList.add('opacity-0', 'scale-x-75');
     lines[2].classList.add('-translate-y-2', '-rotate-45');
   }
 
   function closeMenu() {
-    menu.style.maxHeight = '0px';
-    menu.classList.remove('border-b');
+    menu.dataset.open = 'false';
     toggle.setAttribute('aria-expanded', 'false');
     // Restore hamburger
     lines[0].classList.remove('translate-y-2', 'rotate-45');
-    lines[1].classList.remove('opacity-0', 'scale-x-0');
+    lines[1].classList.remove('opacity-0', 'scale-x-75');
     lines[2].classList.remove('-translate-y-2', '-rotate-45');
   }
 
